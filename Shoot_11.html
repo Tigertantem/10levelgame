@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Game with Levels and Enemies</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; background: #000; }
+        #gameMenu { position: absolute; top: 10px; left: 10px; color: white; font-family: Arial, sans-serif; }
+        #levelSelector { display: none; }
+        button { margin: 5px; }
+    </style>
+</head>
+<body>
+    <div id="gameMenu">
+        <button onclick="startGame()">Start Game</button>
+        <button onclick="showLevelSelector()">Select Level</button>
+        <button onclick="restartGame()">Restart Game</button>
+        <div id="levelSelector">
+            <button onclick="startLevel(0)" id="level1">Level 1</button>
+            <button onclick="startLevel(1)" id="level2" disabled>Level 2</button>
+            <button onclick="startLevel(2)" id="level3" disabled>Level 3</button>
+            <button onclick="startLevel(3)" id="level4" disabled>Level 4</button>
+            <button onclick="startLevel(4)" id="level5" disabled>Level 5</button>
+            <button onclick="startLevel(5)" id="level6" disabled>Level 6</button>
+            <button onclick="startLevel(6)" id="level7" disabled>Level 7</button>
+            <button onclick="startLevel(7)" id="level8" disabled>Level 8</button>
+            <button onclick="startLevel(8)" id="level9" disabled>Level 9</button>
+            <button onclick="startLevel(9)" id="level10" disabled>Level 10</button>
+        </div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <audio id="shootSound" src="sounds/shoot.mp3"></audio>
+    <audio id="enemyHitSound" src="sounds/enemy-hit.mp3"></audio>
+    <audio id="levelCompleteSound" src="sounds/level-complete.mp3"></audio>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const player = {
+            x: 50,
+            y: 50,
+            width: 20,
+            height: 20,
+            speed: 5,
+            dx: 0,
+            dy: 0,
+            direction: 'right'
+        };
+
+        const keys = {
+            up: false,
+            down: false,
+            left: false,
+            right: false,
+            shoot: false,
+            changeDirection: false
+        };
+
+        const bullets = [];
+        let enemies = [];
+
+        const levels = [
+            { token: { x: 200, y: 200, width: 10, height: 10 }, unlocked: true },
+            { token: { x: 300, y: 300, width: 10, height: 10 }, unlocked: false },
+            { token: { x: 400, y: 400, width: 10, height: 10 }, unlocked: false },
+            { token: { x: 500, y: 500, width: 10, height: 10 }, unlocked: false },
+            { token: { x: 600, y: 600, width: 10, height: 10 }, unlocked: false },
+            { token: { x: 700, y: 700, width: 10, height: 10 }, unlocked: false },
+            { token: { x: 800, y: 800, width: 10, height: 10 }, unlocked: false },
+            { token: { x: 900, y: 900, width: 10, height: 10 }, unlocked: false },
+            { token: { x: 1000, y: 1000, width: 10, height: 10 }, unlocked: false },
+            { token: { x: 1100, y: 1100, width: 10, height: 10 }, unlocked: false }
+        ];
+
+        let currentLevel = 0;
+        let gameStarted = false;
+        let shootDirection = 'right';
+
+        function startGame() {
+            gameStarted = true;
+            document.getElementById('gameMenu').style.display = 'none';
+            document.getElementById('levelSelector').style.display = 'none';
+            update();
+        }
+
+        function showLevelSelector() {
+            document.getElementById('levelSelector').style.display = 'block';
+            updateLevelButtons();
+        }
+
+        function updateLevelButtons() {
+            levels.forEach((level, index) => {
+                document.getElementById(`level${index + 1}`).disabled = !level.unlocked;
+            });
+        }
+
+        function startLevel(levelIndex) {
+            currentLevel = levelIndex;
+            player.x = 50;
+            player.y = 50;
+            bullets.length = 0;
+            enemies = createEnemies();
+            gameStarted = true;
+            update();
+        }
+
+        function restartGame() {
+            currentLevel = 0;
+            levels.forEach((level, index) => {
+                if (index > 0) level.unlocked = false;
+            });
+            startLevel(0);
+        }
+
+        function createEnemies() {
+            const levelEnemies = [];
+            for (let i = 0; i <= currentLevel; i++) {
+                levelEnemies.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    width: 20,
+                    height: 20,
+                    speed: 2,
+                    dx: Math.random() > 0.5 ? 2 : -2,
+                    dy: Math.random() > 0.5 ? 2 : -2
+                });
+            }
+            return levelEnemies;
+        }
+
+        function drawPlayer() {
+            ctx.fillStyle = 'white';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+        }
+
+        function drawToken(level) {
+            ctx.fillStyle = 'yellow';
+            ctx.fillRect(level.token.x, level.token.y, level.token.width, level.token.height);
+        }
+
+        function drawEnemies() {
+            ctx.fillStyle = 'red';
+            enemies.forEach(enemy => {
+                ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+            });
+        }
+
+        function drawBullets() {
+            ctx.fillStyle = 'blue';
+            bullets.forEach(bullet => {
+                ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+            });
+        }
+
+        function clear() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function newPos() {
+            player.x += player.dx;
+            player.y += player.dy;
+
+            // Ensure player stays within canvas boundaries
+            if (player.x < 0) player.x = 0;
+            if (player.y < 0) player.y = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+            if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
+
+            bullets.forEach(bullet => {
+                if (bullet.direction === 'right') bullet.x += bullet.dx;
+                if (bullet.direction === 'left') bullet.x -= bullet.dx;
+                if (bullet.direction === 'up') bullet.y -= bullet.dx;
+                if (bullet.direction === 'down') bullet.y += bullet.dx;
+            });
+
+            enemies.forEach(enemy => {
+                const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+                enemy.dx = Math.cos(angle) * enemy.speed;
+                enemy.dy = Math.sin(angle) * enemy.speed;
+                enemy.x += enemy.dx;
+                enemy.y += enemy.dy;
+            });
+        }
+
+        function detectToken(level) {
+            if (player.x < level.token.x + level.token.width &&
+                player.x + player.width > level.token.x &&
+                player.y < level.token.y + level.token.height &&
+                player.y + player.height > level.token.y) {
+                document.getElementById('levelCompleteSound').play();
+                level.unlocked = true;
+                updateLevelButtons();
+                currentLevel++;
+                if (currentLevel >= levels.length) {
+                    alert('You completed all levels!');
+                    gameStarted = false;
+                    document.getElementById('gameMenu').style.display = 'block';
+                } else {
+                    startLevel(currentLevel);
+                }
+            }
+        }
+
+        function detectCollisions() {
+            bullets.forEach((bullet, bulletIndex) => {
+                enemies.forEach((enemy, enemyIndex) => {
+                    if (bullet.x < enemy.x + enemy.width &&
+                        bullet.x + bullet.width > enemy.x &&
+                        bullet.y < enemy.y + enemy.height &&
+                        bullet.y + bullet.height > enemy.y) {
+                        document.getElementById('enemyHitSound').play();
+                        enemies.splice(enemyIndex, 1);
+                        bullets.splice(bulletIndex, 1);
+                    }
+                });
+            });
+
+            enemies.forEach((enemy, enemyIndex) => {
+                if (player.x < enemy.x + enemy.width &&
+                    player.x + player.width > enemy.x &&
+                    player.y < enemy.y + enemy.height &&
+                    player.y + player.height > enemy.y) {
+                    alert('You were caught by an enemy!');
+                    gameStarted = false;
+                    document.getElementById('gameMenu').style.display = 'block';
+                }
+            });
+        }
+
+        function update() {
+            if (!gameStarted) return;
+            clear();
+            newPos();
+            drawPlayer();
+            drawBullets();
+            drawEnemies();
+            if (levels[currentLevel]) {
+                drawToken(levels[currentLevel]);
+                detectToken(levels[currentLevel]);
+            }
+            detectCollisions();
+            requestAnimationFrame(update);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') keys.right = true;
+            if (e.key === 'ArrowLeft') keys.left = true;
+            if (e.key === 'ArrowUp') keys.up = true;
+            if (e.key === 'ArrowDown') keys.down = true;
+            if (e.key === '1') keys.shoot = true;
+            if (e.key === '2') keys.changeDirection = true;
+            updatePlayerDirection();
+            shootBullet();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowRight') keys.right = false;
+            if (e.key === 'ArrowLeft') keys.left = false;
+            if (e.key === 'ArrowUp') keys.up = false;
+            if (e.key === 'ArrowDown') keys.down = false;
+            if (e.key === '1') keys.shoot = false;
+            if (e.key === '2') keys.changeDirection = false;
+            updatePlayerDirection();
+        });
+
+        function updatePlayerDirection() {
+            player.dx = (keys.right ? player.speed : 0) - (keys.left ? player.speed : 0);
+            player.dy = (keys.down ? player.speed : 0) - (keys.up ? player.speed : 0);
+        }
+
+        function shootBullet() {
+            if (keys.shoot) {
+                document.getElementById('shootSound').play();
+                bullets.push({
+                    x: player.x + player.width / 2,
+                    y: player.y + player.height / 2,
+                    width: 5,
+                    height: 5,
+                    dx: 10,
+                    direction: shootDirection
+                });
+                keys.shoot = false;
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '2') {
+                if (shootDirection === 'right') shootDirection = 'down';
+                else if (shootDirection === 'down') shootDirection = 'left';
+                else if (shootDirection === 'left') shootDirection = 'up';
+                else if (shootDirection === 'up') shootDirection = 'right';
+            }
+        });
+
+        // Uncomment the line below to automatically start the game for testing
+        // startGame();
+    </script>
+</body>
+</html>
